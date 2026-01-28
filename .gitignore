@@ -55,3 +55,24 @@ ehthumbs.db
 *.tmp
 *.temp
 tempfile*
+
+# Documentation References
+# For file descriptions, see MANIFEST.md
+# For configuration details, see .gitignore documentation
+# All documentation files are tracked in version control
+
+# PROJECT FILES - DO NOT IGNORE
+# The following files are PART OF THE PROJECT and should be tracked:
+# ✓ app.py - Main application
+# ✓ requirements.txt - Dependencies
+# ✓ README.md - Main documentation
+# ✓ QUICKSTART.md - Quick start guide
+# ✓ START_HERE.md - Project overview
+# ✓ SECURITY.md - Security documentation
+# ✓ ARCHITECTURE.md - System design
+# ✓ UPDATES.md - Change log
+# ✓ IMPLEMENTATION_COMPLETE.md - Status
+# ✓ INDEX.md - Navigation guide
+# ✓ MANIFEST.md - File listing (this section)
+# ✓ LICENSE - MIT License
+# ✓ .gitignore - This file
