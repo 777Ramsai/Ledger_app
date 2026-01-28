@@ -2,6 +2,16 @@
 
 A secure, user-friendly mobile-optimized ledger application for tracking business transactions and managing supplier accounts.
 
+## 🔗 Live App
+
+**Try the app now:** [🚀 Open Pocket Ledger](https://ledgerapp-2508.streamlit.app/)
+
+> **Demo Credentials (Optional):**
+> - Email: `demo@example.com`
+> - Password: `demo123` (or create your own account)
+
+---
+
 ## ✨ Features
 
 ### 🔐 User Authentication

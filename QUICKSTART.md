@@ -1,6 +1,14 @@
 # 🚀 Quick Start Guide - Pocket Ledger
 
-## Installation (First Time)
+## ⚡ Quick Option: Use Live App (Recommended)
+
+**👉 [Open Live App Now](https://ledgerapp-2508.streamlit.app/)** - No installation needed!
+
+Just create an account or login and start using.
+
+---
+
+## 📦 Installation Option: Run Locally (First Time)
 
 ### Step 1: Install Python Dependencies
 ```bash
