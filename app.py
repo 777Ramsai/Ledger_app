@@ -4,36 +4,146 @@ import os
 from datetime import date
 from fpdf import FPDF
 import tempfile
+import json
+import hashlib
+from pathlib import Path
 
-# --- Simple Security ---
-def check_password():
-    if "password_guessed" not in st.session_state:
-        st.session_state["password_guessed"] = False
+# --- Authentication and User Management ---
+USERS_FILE = 'users_data.json'
+DATA_DIR = 'user_data'
 
-    if not st.session_state["password_guessed"]:
-        password = st.text_input("Enter Password to Access Ledger", type="password")
-        if password == "MyBusiness2026": # <--- CHANGE YOUR PASSWORD HERE
-            st.session_state["password_guessed"] = True
-            st.rerun()
-        elif password != "":
-            st.error("Wrong password")
-        return False
-    return True
+# Ensure data directory exists
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
-if not check_password():
-    st.stop() # Do not run the rest of the app
+def hash_password(password: str) -> str:
+    """Hash password using SHA-256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def load_users():
+    """Load all registered users."""
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_users(users: dict):
+    """Save users to file."""
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=2)
+
+def register_user(email: str, password: str) -> tuple:
+    """Register a new user."""
+    users = load_users()
     
+    if email in users:
+        return False, "Email already registered!"
+    
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters!"
+    
+    if "@" not in email or "." not in email:
+        return False, "Please enter a valid email!"
+    
+    users[email] = {
+        "password_hash": hash_password(password),
+        "created_at": str(date.today())
+    }
+    save_users(users)
+    return True, "Account created successfully!"
+
+def login_user(email: str, password: str) -> tuple:
+    """Verify user credentials."""
+    users = load_users()
+    
+    if email not in users:
+        return False, "Email not found!"
+    
+    if users[email]["password_hash"] != hash_password(password):
+        return False, "Incorrect password!"
+    
+    return True, "Login successful!"
+
+def get_user_data_file(email: str) -> str:
+    """Get user-specific ledger file path."""
+    return os.path.join(DATA_DIR, f"{email.replace('@', '_').replace('.', '_')}_ledger.csv")
+
+def initialize_auth_session():
+    """Initialize authentication session state."""
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    if "user_email" not in st.session_state:
+        st.session_state.user_email = None
+
+initialize_auth_session()
+
+def render_auth_page():
+    """Render login/signup page."""
+    st.set_page_config(page_title="Pocket Ledger - Login", layout="centered")
+    st.title("🔐 Pocket Ledger")
+    st.markdown("---")
+    
+    tab1, tab2 = st.tabs(["Login", "Sign Up"])
+    
+    with tab1:
+        st.subheader("Login to Your Account")
+        login_email = st.text_input("Email", key="login_email", placeholder="your@email.com")
+        login_password = st.text_input("Password", type="password", key="login_password")
+        
+        if st.button("Login", use_container_width=True, type="primary"):
+            if login_email and login_password:
+                success, message = login_user(login_email, login_password)
+                if success:
+                    st.session_state.authenticated = True
+                    st.session_state.user_email = login_email
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+            else:
+                st.error("Please fill in all fields!")
+    
+    with tab2:
+        st.subheader("Create a New Account")
+        signup_email = st.text_input("Email", key="signup_email", placeholder="your@email.com")
+        signup_password = st.text_input("Password", type="password", key="signup_password", 
+                                        help="At least 6 characters")
+        signup_password_confirm = st.text_input("Confirm Password", type="password", 
+                                                key="signup_password_confirm")
+        
+        if st.button("Sign Up", use_container_width=True, type="primary"):
+            if not signup_email or not signup_password:
+                st.error("Please fill in all fields!")
+            elif signup_password != signup_password_confirm:
+                st.error("Passwords don't match!")
+            else:
+                success, message = register_user(signup_email, signup_password)
+                if success:
+                    st.success(message)
+                    st.info("Now you can login with your credentials!")
+                else:
+                    st.error(message)
+
+# --- Check Authentication ---
+if not st.session_state.authenticated:
+    render_auth_page()
+    st.stop()
+
 # --- Configuration ---
-FILE_NAME = 'ledger_data.csv'
+def get_file_name():
+    if st.session_state.authenticated:
+        return get_user_data_file(st.session_state.user_email)
+    return 'ledger_data.csv'
 
 # --- 1. Data Functions ---
 def load_data():
     """Load data from CSV, creating the file if it doesn't exist."""
-    if not os.path.exists(FILE_NAME):
+    file_name = get_file_name()
+    if not os.path.exists(file_name):
         df = pd.DataFrame(columns=["Date", "Shop Name", "Type", "Amount", "Description"])
-        df.to_csv(FILE_NAME, index=False)
+        df.to_csv(file_name, index=False)
         return df
-    return pd.read_csv(FILE_NAME)
+    return pd.read_csv(file_name)
 
 def save_transaction(date_val, shop, trans_type, amount, desc):
     """Save a new transaction to the CSV."""
@@ -46,7 +156,7 @@ def save_transaction(date_val, shop, trans_type, amount, desc):
         "Description": [desc]
     })
     df = pd.concat([df, new_data], ignore_index=True)
-    df.to_csv(FILE_NAME, index=False)
+    df.to_csv(get_file_name(), index=False)
 
 def create_pdf(shop_name, df_shop):
     """Generate PDF Statement."""
@@ -87,14 +197,27 @@ def create_pdf(shop_name, df_shop):
 # --- 2. App Layout (Mobile Friendly) ---
 st.set_page_config(page_title="Pocket Ledger", layout="centered") 
 st.title("📦 Pocket Ledger")
+st.markdown(f"👤 Logged in as: **{st.session_state.user_email}**")
 
-# --- Sidebar: Data Management ---
+# --- Sidebar: Data Management & User Options ---
 with st.sidebar:
-    st.header("⚙️ Data Options")
+    st.header("⚙️ Options")
+    
+    st.subheader("User Account")
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
+        st.success("Logged out successfully!")
+        st.rerun()
+    
+    st.divider()
+    st.subheader("📊 Data Management")
+    
     # Backup Feature
-    if os.path.exists(FILE_NAME):
-        with open(FILE_NAME, "rb") as f:
-            st.download_button("📥 Download Excel Backup", f, "ledger_backup.csv", "text/csv")
+    file_name = get_file_name()
+    if os.path.exists(file_name):
+        with open(file_name, "rb") as f:
+            st.download_button("📥 Download CSV Backup", f, "ledger_backup.csv", "text/csv")
 
 # --- Section A: Quick Add (Expander) ---
 with st.expander("➕ Add New Transaction", expanded=False):
