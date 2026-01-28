@@ -5,6 +5,24 @@ from datetime import date
 from fpdf import FPDF
 import tempfile
 
+# --- Simple Security ---
+def check_password():
+    if "password_guessed" not in st.session_state:
+        st.session_state["password_guessed"] = False
+
+    if not st.session_state["password_guessed"]:
+        password = st.text_input("Enter Password to Access Ledger", type="password")
+        if password == "MyBusiness2026": # <--- CHANGE YOUR PASSWORD HERE
+            st.session_state["password_guessed"] = True
+            st.rerun()
+        elif password != "":
+            st.error("Wrong password")
+        return False
+    return True
+
+if not check_password():
+    st.stop() # Do not run the rest of the app
+    
 # --- Configuration ---
 FILE_NAME = 'ledger_data.csv'
 
@@ -169,4 +187,5 @@ if not df.empty:
         with open(pdf_path, "rb") as f:
             st.download_button("📄 PDF Statement", f, f"{selected_shop}.pdf", "application/pdf")
 else:
+
     st.info("Start by adding a transaction above.")
